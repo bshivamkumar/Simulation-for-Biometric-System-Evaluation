@@ -1,0 +1,855 @@
+---
+title: "Project 1 Random Match Probability"
+subtitle: "STAT 601: Group 5 (Fall 2024)"
+author: "Neha Karna, Prafulla Shrestha, Aidan Stewart, Josh Lefdal, Shivam Bhardwaj"
+format: pdf
+editor: visual
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, warning=FALSE, message=FALSE)
+```
+
+```{r}
+#update necessary libraries
+#install.packages("ggplot2")
+library(ggplot2)
+```
+
+# UB_1: Equal Probability
+
+```{r UB1_simulation}
+#For reproducibility
+set.seed(1234)
+
+#different combination of categories, sample size and simulation size
+C.iter <- c(40,50,60)
+samp.iter <- c(30, 60, 120, 240, 500)
+sim.iter <- c(1500, 3000)
+
+#Initialize the storage of result as dataframe
+results.ub1 <- data.frame(C = integer(),
+                      sample_size = integer(),
+                      sim_size = integer(),
+                      RMP = numeric(),
+                      Coverage_Prob = numeric(),
+                      Average_UB= numeric())
+
+#to check the time elapsed for each simulation
+start_time <- proc.time()
+
+#Loop over different combination
+for (sim.size in sim.iter){
+  for (samp.size in samp.iter) {
+    for (C in C.iter){
+      
+      #Temporary storage for each combination
+      storer.thetas=NULL
+      storer.ub1=NULL
+      
+      for(iter in 1:sim.size){
+        xdat.iter = rmultinom(samp.size, 1, rep(1/C, C))
+        pw.dist = as.vector(dist(t(xdat.iter))) #pairwise distance
+        
+        m.dat = 1*(pw.dist==0) #Match Identifier: 1 means its a match
+        theta.hat = mean(m.dat) #Estimated match from our sample
+        
+        #calculate UB_1: i.i.d. Binomial Assumption on random match
+        ub1.iter = theta.hat +
+          1.645*sqrt((theta.hat*(1-theta.hat))/choose(samp.size, 2))
+        
+        
+        #store results
+        storer.thetas = c(storer.thetas, theta.hat)
+        storer.ub1 = c(storer.ub1, ub1.iter)
+      }
+      
+      #calculate Upper Bound on an average 
+      avg.ub1<- mean(storer.ub1)
+      
+      #calculate simulation estimate of RMP
+      RMP<- mean(storer.thetas)
+      
+      #calculate coverage probability
+      coverage<- mean(mean(storer.thetas)<storer.ub1)
+      
+      #store the result as data.frame
+      results.ub1<- rbind(results.ub1, data.frame(C=C,
+                                          sample_size= samp.size,
+                                          simulation_size= sim.size,
+                                          estd_RMP= RMP,
+                                          Coverage_prob = coverage,
+                                          Average_UB=avg.ub1))
+     
+    }
+  }
+  
+}
+
+#time elapsed
+end_time <- proc.time() - start_time
+print(paste("Simulation Runtime:",format(end_time[3], nsmall = 3), "seconds"))
+
+```
+
+```{r UB1_RMP_Plot}
+
+ggplot(results.ub1, aes(x= sample_size, y= estd_RMP, color= as.factor(C)))+
+  geom_line()+
+  geom_point(size=1.5)+
+  facet_wrap(~simulation_size, scales = "free", #different facet for simulation size
+             labeller = labeller(simulation_size = c("1500" = "Simulation Size: 1500", 
+                                                     "3000" = "Simulation Size: 3000")))+
+  labs(title = "Estimate of RMP for UB1: Equal Probabilities",
+       x = "Sample Size",
+       y = "RMP",
+       color = "Categories") + #color coded for categories
+  theme_minimal()+
+  theme(plot.title = element_text(hjust = 0.5))
+```
+
+```{r UB1_Coverage_Plot, echo=FALSE}
+
+# UB_1: coverage Equal probability
+ggplot(results.ub1, aes(x= sample_size, y= Coverage_prob, color= as.factor(C)))+
+  geom_line()+
+  geom_point(size=1.5)+
+  facet_wrap(~simulation_size, scales = "free", #different facet for two simulation size
+             labeller = labeller(simulation_size = c("1500" = "Simulation Size: 1500", 
+                                                     "3000" = "Simulation Size: 3000")))+
+  labs(title = "Coverage Probability for UB1: Equal Probabilities",
+       x = "Sample Size",
+       y = "Coverage Probability",
+       color = "Categories") +
+  theme_minimal()+
+  theme(plot.title = element_text(hjust = 0.5))
+
+```
+
+# UB_2: Equal Probability
+
+```{r UB2_simulation}
+#For reproducibility
+set.seed(1234)
+
+#different combination of categories, sample size and simulation size
+C.iter <- c(40,50,60)
+samp.iter <- c(30, 60, 120, 240, 500)
+sim.iter <- c(1500, 3000)
+
+#Initialize the storage for RMP and coverage probability for different combination
+results.ub2 <- data.frame(C = integer(),
+                      sample_size = integer(),
+                      sim_size = integer(),
+                      RMP = numeric(),
+                      Coverage_Prob = numeric(),
+                      Average_UB= numeric())
+
+#to check the time elapsed for simulation
+start_time <- proc.time()
+
+#Loop over different combination
+for (sim.size in sim.iter){
+  for (samp.size in samp.iter) {
+    for (C in C.iter){
+      
+      #Temporary storage for each combination
+      storer.thetas=NULL
+      storer.ub2=NULL
+      
+      for(iter in 1:sim.size){
+        xdat.iter = rmultinom(samp.size, 1, rep(1/C, C)) #equal probability
+        pw.dist = as.vector(dist(t(xdat.iter))) #pairwise distance
+        
+        m.dat = 1*(pw.dist==0) #Match Identifier
+        theta.hat = mean(m.dat) #Average estimated match from the sample
+        
+        #calculate UB_2 Independent Comparisons Binomial Assumption
+        ub2.iter = theta.hat +
+          1.645*sqrt((theta.hat*(1-theta.hat))/(samp.size/2))
+        
+        #store results
+        storer.thetas = c(storer.thetas, theta.hat)
+        storer.ub2 = c(storer.ub2, ub2.iter)
+      }
+      #calculate Upper Bound on an average 
+      avg.ub2<- mean(storer.ub2)
+      
+      #calculate simulation estimate of RMP
+      RMP<- mean(storer.thetas)
+      
+      #calculate coverage probability
+      coverage<- mean(mean(storer.thetas)<storer.ub2)
+      
+      #store the result as data.frame
+      results.ub2<- rbind(results.ub2, data.frame(C=C,
+                                          sample_size= samp.size,
+                                          simulation_size= sim.size,
+                                          estd_RMP= RMP,
+                                          Coverage_prob = coverage,
+                                          Average_UB=avg.ub2))
+     
+    }
+  }
+  
+  }
+end_time <- proc.time() - start_time
+print(paste("Simulation Runtime:",format(end_time[3], nsmall = 3), "seconds"))
+```
+
+```{r UB2_RMP_plot}
+
+ggplot(results.ub2, aes(x= sample_size, y= estd_RMP, color= as.factor(C)))+
+  geom_line()+
+  geom_point(size=1.5)+
+  facet_wrap(~simulation_size, scales = "free",
+             labeller = labeller(simulation_size = c("1500" = "Simulation Size: 1500", 
+                                                     "3000" = "Simulation Size: 3000")))+
+  labs(title = "Estimate of RMP for UB2: Equal Probabilities",
+       x = "Sample Size",
+       y = "RMP",
+       color = "Categories") +
+  theme_minimal()+
+  theme(plot.title = element_text(hjust = 0.5))
+
+```
+
+```{r UB2_Coverage_plot}
+
+ggplot(results.ub2, aes(x= sample_size, y= Coverage_prob, color= as.factor(C)))+
+  geom_line()+
+  geom_point(size=1.5)+
+  facet_wrap(~simulation_size, scales = "free", #different facet for two simulation
+             labeller = labeller(simulation_size = c("1500" = "Simulation Size: 1500", 
+                                                     "3000" = "Simulation Size: 3000")))+
+  labs(title = "Coverage Probability for UB_2: Equal Probabilities",
+       x = "Sample Size",
+       y = "Coverage Probability",
+       color = "Categories") +
+  theme_minimal()+
+  theme(plot.title = element_text(hjust = 0.5))
+
+```
+
+# UB_3: Equal Probability
+
+```{r UB3_simulation}
+
+#For reproducibility
+set.seed(1234)
+
+#different combination of categories, sample size and simulation size
+C.iter <- c(40,50,60)
+samp.iter <- c(30, 60, 120, 240, 500)
+sim.iter <- c(1500, 3000)
+#Initialize the storage for RMP and coverage probability for different combination
+results.ub3 <- data.frame(C = integer(),
+                      sample_size = integer(),
+                      sim_size = integer(),
+                      RMP = numeric(),
+                      Coverage_Prob = numeric(),
+                      Average_UB=numeric())
+
+#to check the time elapsed for simulation
+start_time <- proc.time()
+
+#Loop over different combination
+for (sim.size in sim.iter){
+  for (samp.size in samp.iter) {
+    for (C in C.iter){
+      
+      #Temporary storage for each combination
+      storer.thetas.ub3<-NULL
+      storer.ub3<-NULL
+      
+      for(iter in 1:sim.size){
+        xdat.iter <- rmultinom(samp.size, 1, rep(1/C, C)) #Equal probabilities
+        pw.dist <- as.matrix(dist(t(xdat.iter))) #pairwise distance
+        
+        m.dat <- 1*(pw.dist==0) #Match indentifier
+        diag(m.dat) <- NA #avoid self comparision
+        
+        #theta_i counts proportion of match for ith profile
+        theta_i <- rowSums(m.dat, na.rm = TRUE)/(samp.size-1)
+        theta.hat <- mean(theta_i) # Estimated random match probability
+        
+        rho_hat_sqrd <- sum((theta_i - theta.hat)^2) / (samp.size - 1)
+        rho_hat <- sqrt(rho_hat_sqrd)
+        
+        # Calculate ub3
+        ub3.iter <- theta.hat + 1.645 * (2 * rho_hat / sqrt(samp.size))
+        
+        #store results
+        storer.thetas.ub3 = c(storer.thetas.ub3, theta.hat)
+        storer.ub3 = c(storer.ub3, ub3.iter)
+      }
+      #calculate ub3 on an average
+      avg.ub3<- mean(storer.ub3)
+      
+      #calculate simulation estimate of RMP
+      RMP<- mean(storer.thetas.ub3)
+      
+      #calculate coverage probability
+      coverage<- mean(mean(storer.thetas.ub3)<storer.ub3)
+      
+      #store the result as data.frame
+      results.ub3<- rbind(results.ub3, data.frame(C=C,
+                                          sample_size= samp.size,
+                                          simulation_size= sim.size,
+                                          estd_RMP= RMP,
+                                          Coverage_prob = coverage,
+                                          Average_UB= avg.ub3))
+     
+    }
+  }
+  
+  }
+end_time <- proc.time() - start_time
+print(paste("Simulation Runtime:",format(end_time[3], nsmall = 3), "seconds"))
+
+```
+
+```{r UB3_RMP_plot}
+
+ggplot(results.ub3, aes(x= sample_size, y= estd_RMP, color= as.factor(C)))+
+  geom_line()+
+  geom_point(size=1.5)+
+  facet_wrap(~simulation_size, scales = "free", #facets for different simulation size
+             labeller = labeller(simulation_size = c("1500" = "Simulation Size: 1500", 
+                                                     "3000" = "Simulation Size: 3000")))+
+  labs(title = "Estimated RMP for UB_3: Equal Probabilities",
+       x = "Sample Size",
+       y = "RMP",
+       color = "Categories") +
+  theme_minimal()+
+  theme(plot.title = element_text(hjust = 0.5))
+
+```
+
+```{r UB3_Coverage_plot}
+
+ggplot(results.ub3, aes(x= sample_size, y= Coverage_prob, color= as.factor(C)))+
+  geom_line()+
+  geom_point(size=1.5)+
+  facet_wrap(~simulation_size, scales = "free",
+             labeller = labeller(simulation_size = c("1500" = "Simulation Size: 1500", 
+                                                     "3000" = "Simulation Size: 3000")))+
+  labs(title = "Coverage Probability for UB_3: Equal Probabilities",
+       x = "Sample Size",
+       y = "Coverage Probability",
+       color = "Categories") +
+  theme_minimal()+
+  theme(plot.title = element_text(hjust = 0.5))
+
+```
+
+# Comparing $UB_1$, $UB_2$ and $UB_3$ with equal probabilities
+
+```{r}
+#Data Manipulation: Equal Probabilities
+#add new column for identification
+results.ub1$Type<- "UB1"
+results.ub2$Type<- "UB2"
+results.ub3$Type<- "UB3"
+#combine dataframes
+results.equal<- rbind(results.ub1,results.ub2, results.ub3)
+#filter to have data for simulation size 3000 only
+results.equal<- results.equal[results.equal$simulation_size == 3000, ]
+#sort according to categories
+results.equal <- results.equal[order(results.equal$C), ]
+
+```
+
+## Compare average upper bound
+
+```{r}
+
+ggplot(results.equal, aes(x= sample_size, y= Average_UB, color= as.factor(C)))+
+  geom_line()+
+  geom_point(size=1.5)+
+  facet_wrap(~Type)+
+  labs(title = "Comparison of Average Upper Bounds: UB1, UB2, and UB3 (Equal Probabilities)",
+       x = "Sample Size (Number of Biometric Profiles)",
+       y = "Upper Bound (Random Match Probability)",
+       color = "Categories") +
+  theme_minimal()+
+  theme(plot.title = element_text(hjust = 0.5))
+```
+
+**Comment:** Using $UB_2$, we observe a higher upper bound, which is not ideal since we are interested in lower RMP values for better system efficiency. $UB_1$ provides the lowest upper bound across all three category sizes and sample sizes, making it a more desirable option for this analysis. $UB_2$'s higher values may result from its assumption of independent comparisons, which can overestimate the bounds.
+
+## Compare Estimated RMP
+
+```{r}
+
+ggplot(results.equal, aes(x= sample_size, y= estd_RMP, color= as.factor(C)))+
+  geom_line()+
+  geom_point(size=1.5)+
+  facet_wrap(~Type)+
+  labs(title = "Comparison of Estimated RMP: UB1, UB2, and UB3 (Equal Probabilities)",
+       x = "Sample Size",
+       y = "Estimated Random Match Probability (RMP)",
+       color = "Categories") +
+  theme_minimal()+
+  theme(plot.title = element_text(hjust = 0.5))
+
+```
+
+**Comment:** The estimated RMP remains almost identical across $UB_1$, $UB_2$, and $UB_3$, showing consistency in RMP estimation despite the differences in their confidence.
+
+### Compare Coverage Probability for UB1, UB2 and UB3
+
+```{r}
+
+ggplot(results.equal, aes(x= sample_size, y= Coverage_prob, color= as.factor(C)))+
+  geom_line()+
+  geom_point(size=1.5)+
+  geom_hline(yintercept = 0.95, linetype = "dashed", color = "red") +  # 95% benchmark
+  facet_wrap(~Type)+
+  labs(title = "Comparison of Coverage Probability: UB1, UB2, and UB3 (Equal Probabilities)",
+       x = "Sample Size",
+       y = "Coverage Probability",
+       color = "Categories") +
+  theme_minimal()+
+  theme(plot.title = element_text(hjust = 0.5))
+
+```
+
+**Comment:** $UB_2$ consistently provides nearly 100% coverage probability across all sample sizes and categories. While this might initially seem ideal, it indicates that $UB_2$ produces higher upper bounds, making it inefficient for practical use. On the other hand, UB1, although slightly below the 95% coverage target at smaller sample sizes, improves as the sample size increases. This makes $UB_1$ a more reliable and efficient choice for larger datasets. $UB_3$ starts off with lower coverage at smaller sample sizes but shows significant improvement with larger sample sizes, approaching the desired 95% coverage probability and becoming comparable to UB1 in terms of efficiency.
+
+# UB_1: Unequal Probability
+
+```{r UB1_simulation_Unequal}
+#For reproducibility
+set.seed(1234)
+
+#different combination of categories, sample size and simulation size
+C.iter <- c(40,50,60)
+samp.iter <- c(30, 60, 120, 240, 500)
+sim.iter <- c(1500, 3000)
+
+#Initialize the storage for RMP and coverage probability for different combination
+results.ub1.uneq <- data.frame(C = integer(),
+                      sample_size = integer(),
+                      sim_size = integer(),
+                      RMP = numeric(),
+                      Coverage_Prob = numeric(),
+                      Average_UB=numeric())
+
+#to check the time elapsed for simulation
+start_time <- proc.time()
+
+#Loop over different combination
+for (sim.size in sim.iter){
+  for (samp.size in samp.iter) {
+    for (C in C.iter){
+      
+      #Temporary storage for each combination
+      storer.thetas<-NULL
+      storer.ub1.uneq<-NULL
+      
+      for(iter in 1:sim.size){
+        #varying probability
+        xdat.iter <- rmultinom(samp.size, 1, seq(1, C)/sum(seq(1,C))) 
+        pw.dist <- as.vector(dist(t(xdat.iter))) #pairwise distance
+        
+        m.dat = 1*(pw.dist==0) #Match indentifier
+        theta.hat = mean(m.dat) #average estimated match 
+        
+        #calculate UB_1
+        ub1.iter = theta.hat +
+          1.645*sqrt((theta.hat*(1-theta.hat))/choose(samp.size, 2))
+        
+        #store results
+        storer.thetas = c(storer.thetas, theta.hat)
+        storer.ub1.uneq = c(storer.ub1.uneq, ub1.iter)
+      }
+      #calculated upper bound on an average
+      avg.ub1.uneq<- mean(storer.ub1.uneq)
+      
+      #calculate simulation estimate of RMP
+      RMP<- mean(storer.thetas)
+      
+      #calculate coverage probability
+      coverage<- mean(mean(storer.thetas)<storer.ub1.uneq)
+      
+      #store the result as data.frame
+      results.ub1.uneq <- rbind(results.ub1.uneq, data.frame(C=C,
+                                          sample_size= samp.size,
+                                          simulation_size= sim.size,
+                                          estd_RMP= RMP,
+                                          Coverage_prob = coverage,
+                                          Average_UB= avg.ub1.uneq))
+     
+    }
+  }
+  
+  }
+end_time <- proc.time() - start_time
+print(paste("Simulation Runtime:",format(end_time[3], nsmall = 3), "seconds"))
+
+```
+
+```{r UB1_RMP_plot_uneq}
+
+ggplot(results.ub1.uneq, aes(x= sample_size, y= estd_RMP, color= as.factor(C)))+
+  geom_line()+
+  geom_point(size=1.5)+
+  facet_wrap(~simulation_size, scales = "free", #different facet for simulation size
+             labeller = labeller(simulation_size = c("1500" = "Simulation Size: 1500", 
+                                                     "3000" = "Simulation Size: 3000")))+
+  labs(title = "Estimated RMP for UB_1: Unequal Probabilities",
+       x = "Sample Size",
+       y = "RMP",
+       color = "Categories") +
+  theme_minimal()+
+  theme(plot.title = element_text(hjust = 0.5))
+  
+```
+
+```{r UB1_Coverage_plot_uneq}
+
+ggplot(results.ub1.uneq, aes(x= sample_size, y= Coverage_prob, color= as.factor(C)))+
+  geom_line()+
+  geom_point(size=1.5)+
+  facet_wrap(~simulation_size, scales = "free", #different facets for simulation size
+             labeller = labeller(simulation_size = c("1500" = "Simulation Size: 1500", 
+                                                     "3000" = "Simulation Size: 3000")))+
+  labs(title = "Coverage Probability for UB_1: Unequal Probabilities",
+       x = "Sample Size",
+       y = "Coverage Probability",
+       color = "Categories") +
+  theme_minimal()+
+  theme(plot.title = element_text(hjust = 0.5))
+
+```
+
+# UB_2: Unequal Probability
+
+```{r UB2_simulation_uneq}
+#For reproducibility
+set.seed(1234)
+
+#different combination of categories, sample size and simulation size
+C.iter <- c(40,50,60)
+samp.iter <- c(30, 60, 120, 240, 500)
+sim.iter <- c(1500, 3000)
+
+#Initialize the storage for RMP and coverage probability for different combination
+results.ub2.uneq <- data.frame(C = integer(),
+                      sample_size = integer(),
+                      sim_size = integer(),
+                      RMP = numeric(),
+                      Coverage_Prob = numeric(),
+                      Average_UB=numeric())
+
+#to check the time elapsed for simulation
+start_time <- proc.time()
+
+#Loop over different combination
+for (sim.size in sim.iter){
+  for (samp.size in samp.iter) {
+    for (C in C.iter){
+      
+      #Temporary storage for each combination
+      storer.thetas<-NULL
+      storer.ub2.uneq<-NULL
+      
+      for(iter in 1:sim.size){
+        #varying probabilities
+        xdat.iter = rmultinom(samp.size, 1, seq(1, C)/sum(seq(1,C))) 
+        pw.dist = as.vector(dist(t(xdat.iter))) #pairwise distance
+        
+        m.dat = 1*(pw.dist==0) #Match identifier
+        theta.hat = mean(m.dat) #average estimated match
+        
+        #calculate UB_2
+        ub2.iter = theta.hat +
+          1.645*sqrt((theta.hat*(1-theta.hat))/(samp.size/2))
+        
+        #store results
+        storer.thetas = c(storer.thetas, theta.hat)
+        storer.ub2.uneq = c(storer.ub2.uneq, ub2.iter)
+      }
+      #calculate ub2 on an average
+      avg.ub2.uneq<- mean(storer.ub2.uneq)
+      
+      #calculate simulation estimate of RMP
+      RMP<- mean(storer.thetas)
+      
+      #calculate coverage probability
+      coverage<- mean(mean(storer.thetas)<storer.ub2.uneq)
+      
+      #store the result as data.frame
+      results.ub2.uneq<- rbind(results.ub2.uneq, data.frame(C=C,
+                                          sample_size= samp.size,
+                                          simulation_size= sim.size,
+                                          estd_RMP= RMP,
+                                          Coverage_prob = coverage,
+                                          Average_UB= avg.ub2.uneq))
+     
+    }
+  }
+  
+  }
+end_time <- proc.time() - start_time
+print(paste("Simulation Runtime:",format(end_time[3], nsmall = 3), "seconds"))
+
+```
+
+```{r UB2_RMP_plot_uneq}
+
+ggplot(results.ub2.uneq, aes(x= sample_size, y= estd_RMP, color= as.factor(C)))+
+geom_line()+
+  geom_point(size=1.5)+
+  facet_wrap(~simulation_size, scales = "free", #different facets for two simulation size
+             labeller = labeller(simulation_size = c("1500" = "Simulation Size: 1500", 
+                                                     "3000" = "Simulation Size: 3000")))+
+  labs(title = "Estimated RMP for UB_2: Unequal Probabilities",
+       x = "Sample Size",
+       y = "RMP",
+       color = "Categories") +
+  theme_minimal()+
+  theme(plot.title = element_text(hjust = 0.5))+
+  geom_text(aes(label = round(estd_RMP, 4)), 
+            vjust = -1, size = 2.5, 
+            color = "black", 
+            angle=45, #rotate labels
+            alpha=0.6)+ #transparency
+  coord_cartesian(clip = "off") #avoid overflow
+  
+```
+
+```{r UB2_Coverage_plot_uneq}
+
+ggplot(results.ub2.uneq, aes(x= sample_size, y= Coverage_prob, color= as.factor(C)))+
+  geom_line()+
+  geom_point(size=1.5)+
+  facet_wrap(~simulation_size, scales = "free",
+             labeller = labeller(simulation_size = c("1500" = "Simulation Size: 1500", 
+                                                     "3000" = "Simulation Size: 3000")))+
+  labs(title = "Coverage Probability for UB2: Unequal Probabilities",
+       x = "Sample Size",
+       y = "Coverage Probability",
+       color = "Categories") +
+  theme_minimal()+
+  theme(plot.title = element_text(hjust = 0.5))
+
+```
+
+# UB_3: Unequal Probability
+
+```{r UB3_simulation_uneq}
+#For reproducibility
+set.seed(1234)
+
+#different combination of categories, sample size and simulation size
+C.iter <- c(40,50,60)
+samp.iter <- c(30, 60, 120, 240, 500)
+sim.iter <- c(1500, 3000)
+
+#Initialize the storage for RMP and coverage probability for different combination
+results.ub3.uneq <- data.frame(C = integer(),
+                      sample_size = integer(),
+                      sim_size = integer(),
+                      RMP = numeric(),
+                      Coverage_Prob = numeric(),
+                      Average_UB= numeric())
+
+#to check the time elapsed for simulation
+start_time <- proc.time()
+
+#Loop over different combination
+for (sim.size in sim.iter){
+  for (samp.size in samp.iter) {
+    for (C in C.iter){
+      
+      #Temporary storage for each combination
+      storer.thetas.ub3.uneq<-NULL
+      storer.ub3.uneq<-NULL
+      
+      for(iter in 1:sim.size){
+        #random selection of samples for C categories with unequal probabilities
+        xdat.iter = rmultinom(samp.size, 1, seq(1, C)/sum(seq(1,C))) 
+        pw.dist = as.matrix(dist(t(xdat.iter))) #pairwise distance
+        
+        m.dat = 1*(pw.dist==0) #Match identifier
+        diag(m.dat)=NA #avoid self comparision
+        
+        #proportion of match for ith sample
+        theta.i = rowSums(m.dat, na.rm = TRUE)/(samp.size-1)
+        
+        theta.hat <- mean(theta.i) # Estimated random match probability
+        
+        rho_hat_sqrd <- sum((theta.i - theta.hat)^2) / (samp.size - 1)
+        rho_hat <- sqrt(rho_hat_sqrd)
+        
+        # Calculate UB3
+        
+        ub3.iter <- theta.hat + 1.645 * (2 * rho_hat / sqrt(samp.size))
+        
+        #store results
+        storer.thetas.ub3.uneq = c(storer.thetas.ub3.uneq, theta.hat)
+        storer.ub3.uneq = c(storer.ub3.uneq, ub3.iter)
+      }
+      #calcualte ub3 on an average
+      avg.ub3.uneq<- mean(storer.ub3.uneq)
+      
+      #calculate simulation estimate of RMP
+      RMP<- mean(storer.thetas.ub3.uneq)
+      
+      #calculate coverage probability
+      coverage<- mean(mean(storer.thetas.ub3.uneq)<storer.ub3.uneq)
+      
+      #store the result as data.frame
+      results.ub3.uneq<- rbind(results.ub3.uneq, data.frame(C=C,
+                                          sample_size= samp.size,
+                                          simulation_size= sim.size,
+                                          estd_RMP= RMP,
+                                          Coverage_prob = coverage,
+                                          Average_UB=avg.ub3.uneq))
+     
+    }
+  }
+  
+  }
+end_time <- proc.time() - start_time
+print(paste("Simulation Runtime:",format(end_time[3], nsmall = 3), "seconds"))
+```
+
+```{r UB3_RMP_plot_uneq}
+
+ggplot(results.ub3.uneq, aes(x= sample_size, y= estd_RMP, color= as.factor(C)))+
+  geom_line()+
+  geom_point(size=1.5)+
+  facet_wrap(~simulation_size, scales = "free",
+             labeller = labeller(simulation_size = c("1500" = "Simulation Size: 1500", 
+                                                     "3000" = "Simulation Size: 3000")))+
+  labs(title = "Estimated RMP for UB_3: Unequal Probabilities",
+       x = "Sample Size",
+       y = "RMP",
+       color = "Categories") +
+  theme_minimal()+
+  theme(plot.title = element_text(hjust = 0.5))
+```
+
+```{r UB3_Coverage_Plot_uneq}
+
+ggplot(results.ub3.uneq, aes(x= sample_size, y= Coverage_prob, color= as.factor(C)))+
+  geom_line()+
+  geom_point(size=1.5)+
+  facet_wrap(~simulation_size, scales = "free",
+             labeller = labeller(simulation_size = c("1500" = "Simulation Size: 1500", 
+                                                     "3000" = "Simulation Size: 3000")))+
+  labs(title = "Coverage Probability for UB_3: Unequal Probabilities",
+       x = "Sample Size",
+       y = "Coverage Probability",
+       color = "Categories") +
+  theme_minimal()+
+  theme(plot.title = element_text(hjust = 0.5))
+
+```
+
+# Comparing $UB_1$, $UB_2$ and $UB_3$ with unequal probabilities
+
+```{r}
+#Data Manipulation: Equal Probabilities
+#add new column for identification
+results.ub1.uneq$Type<- "UB1"
+results.ub2.uneq$Type<- "UB2"
+results.ub3.uneq$Type<- "UB3"
+#combine dataframes
+results.unequal<- rbind(results.ub1.uneq,results.ub2.uneq, results.ub3.uneq)
+#filter to have data for simulation size 3000 only
+results.unequal<- results.unequal[results.unequal$simulation_size == 3000, ]
+#sort according to categories
+results.unequal <- results.unequal[order(results.unequal$C), ]
+
+```
+
+## Compare average upper bound
+
+```{r}
+
+ggplot(results.unequal, aes(x= sample_size, y= Average_UB, color= as.factor(C)))+
+  geom_line()+
+  geom_point(size=1.5)+
+  facet_wrap(~Type)+
+  labs(title = "Comparison of Average Upper Bounds: UB1, UB2, UB3 (Unequal Probabilities)",
+       x = "Sample Size (Number of Biometric Profiles)",
+       y = "Upper Bound (Random Match Probability)",
+       color = "Categories") +
+  theme_minimal()+
+  theme(plot.title = element_text(hjust = 0.5))
+```
+
+**Comment:** Using $UB_2$, we observe higher upper bounds, which are not ideal since we are focused on minimizing RMP. This is due to $UB_2$'s assumption of independent comparisons, which tends to overestimate variability, especially under unequal probabilities. $UB_1$ consistently provides the lowest upper bounds across all categories and sample sizes, making it the most efficient method for this scenario.
+
+## Compare Estimated RMP
+
+```{r}
+
+ggplot(results.unequal, aes(x= sample_size, y= estd_RMP, color= as.factor(C)))+
+  geom_line()+
+  geom_point(size=1.5)+
+  facet_wrap(~Type)+
+  labs(title = "Comparison of Estimated RMP: UB1, UB2, UB3 (Unequal Probabilities)",
+       x = "Sample Size",
+       y = "Estimated Random Match Probability (RMP)",
+       color = "Categories") +
+  theme_minimal()+
+  theme(plot.title = element_text(hjust = 0.5))
+
+```
+
+**Comment:** Using $UB_2$, we observe higher upper bounds, which are not ideal since we are focused on minimizing RMP. This is due to $UB_2$'s assumption of independent comparisons, which tends to overestimate variability, especially under unequal probabilities. UB1 consistently provides the lowest upper bounds across all categories and sample sizes, making it the most efficient method for this scenario.
+
+### Compare Coverage Probability for UB1, UB2 and UB3
+
+```{r}
+
+ggplot(results.unequal, aes(x= sample_size, y= Coverage_prob, color= as.factor(C)))+
+  geom_line()+
+  geom_point(size=1.5)+
+  geom_hline(yintercept = 0.95, linetype = "dashed", color = "red") +  # 95% benchmark
+  facet_wrap(~Type)+
+  labs(title = "Comparison of Coverage Probability: UB1, UB2, UB3 (Unequal Probabilities)",
+       x = "Sample Size",
+       y = "Coverage Probability",
+       color = "Categories") +
+  theme_minimal()+
+  theme(plot.title = element_text(hjust = 0.5))
+
+```
+
+**Comment:** $UB_2$ provides nearly 100% coverage probability across all categories and sample sizes, but as we observed earlier, this comes with a larger upper bound and a higher RMP, making $UB_2$ less efficient. $UB_1$ shows lower coverage at larger sample sizes, especially for smaller categories, indicating that it does not consistently reach the 95% confidence level. However, $UB_1$ is still the most efficient in terms of producing lower upper bounds, making it preferable for smaller sample sizes or larger categories. $UB_3$ improves its coverage as the sample size increases, approaching the 95% confidence level, which makes it an efficient option for larger datasets.
+
+# Appendix
+
+```{r}
+print("Compiled Table for UB with Equal Probability: Simulation size 3000")
+results.equal
+print(" UB1 with Equal Probabilities")
+results.ub1
+print("UB2 with Equal Probabilities")
+results.ub2
+print("UB3 with Equal Probabilities")
+results.ub3
+print("UB1 with Unequal Probabilities")
+results.ub1.uneq
+print("UB2 with Unequal Probabilities")
+results.ub2.uneq
+print("UB3 with Unequal Probabilities")
+results.ub3.uneq
+```
+
+```{r export_tables, eval=FALSE}
+#export dataframes as excel, replace eval=TRUE
+#exporting dataframes separately for more flexibility
+
+#install.packages("writexl")
+
+library(writexl)
+write_xlsx(results.equal,"results_equal.xlsx")
+write_xlsx(results.unequal, "results_unequal.xlsx")
+```
